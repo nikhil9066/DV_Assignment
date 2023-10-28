@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./d3.js"></script>
+    <script src="./d3jstopojson.v1.js"></script>
+    <title>MA Map</title>
+    <style>
+        #tooltip_1, #tooltip_2, #tooltip_3 {
+            position: fixed;
+            opacity: 0;
+            top: 0;
+            left: 0;
+            width: auto;
+            padding: 10px;
+            background: white;
+            font-family: sans-serif;
+            font-size: medium;
+            border-radius: 2px;
+            line-height: 1;
+        }
+
+        path {
+            stroke-width: 0.5px;
+            stroke: black;
+        }
+
+        path:hover {
+            opacity: 0.6;
+            stroke: black;
+            stroke-width: 4px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #visualization-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #visualization {
+            width: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Major-Assignment 2</h1>
+        <h3>Nikhil Premachandra Rao</h3>
+        <div id="tooltip_1"></div>
+        <div id="tooltip_2"></div>
+        <div id="tooltip_3"></div>
+    </div>
+
+    <div id="visualization-container">
+        <h4>Population in 1980</h4>
+        <div id="visualization" class="fig2"></div>
+        <h4>Population Change 2010-2000</h4>
+        <div id="visualization" class="fig3"></div>
+        <h4>County Map</h4>
+        <div id="visualization" class="fig4"></div>
+    </div>
+
+    <script>
+        // Function to generate maps
+        const generateMap = (containerName, dataProperty, tooltipId, heatmap = false) => {
+            const windowDims = {
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+
+            const svgWidth = windowDims.width / 3;
+            const svgHeight = windowDims.width / 3;
+            const MA_counties = "towns.topojson";
+
+            const svg = d3.select(containerName).append("svg")
+                .attr("width", svgWidth)
+                .attr("height", svgHeight);
+            const tooltip = d3.select(tooltipId);
+
+            d3.json(MA_counties).then(topologyData => {
+                const geojson = topojson.feature(topologyData, topologyData.objects.ma);
+                const projection = d3.geoMercator().fitSize([svgWidth, svgHeight], geojson);
+
+                const colorInterpolator = heatmap
+                    ? d3.interpolateRgbBasis(['#67001f', '#b2182b', '#d6604d', '#f4a582', '#fddbc7', '#f7f7f7', '#d1e5f0', '#92c5de', '#4393c3', '#f5e7ba', '#eb4034'].reverse())
+                    : d3.interpolateRgbBasis(['#d73027', '#fc8d59', '#fee090', '#e0f3f8', '#91bfdb', '#4575b4'].reverse());
+
+
+                const scale = d3.scaleLinear()
+                    .domain(d3.extent(geojson.features, d => d.properties[dataProperty]));
+
+                svg.selectAll("path")
+                    .data(geojson.features)
+                    .enter()
+                    .append("path")
+                    .attr("d", d3.geoPath().projection(projection))
+                    .attr("fill", d => heatmap ? colorInterpolator(scale(d.properties[dataProperty])) : colorInterpolator(scale(d.properties[dataProperty])))
+                    .on("mouseenter", (event, d) => {
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", 0.9);
+                        tooltip.html(`${d.properties.TOWN} <br> ${d.properties[dataProperty]}`)
+                            .style("left", event.clientX + "px")
+                            .style("top", event.clientY + "px");
+                    })
+                    .on("mousemove", () => {
+                        tooltip.style("opacity", 0.9);
+                    })
+                    .on("mouseout", () => {
+                        tooltip.transition()
+                            .duration(400)
+                            .style("opacity", 0);
+                    });
+            });
+        };
+
+        // Generate maps with the specified data properties and tooltips
+        generateMap(".fig2", "POP1980", "#tooltip_1", true); // Use heatmap
+        generateMap(".fig3", "POPCH00_10", "#tooltip_2");
+        generateMap(".fig4", "FIPS_STCO", "#tooltip_3");
+    </script>
+</body>
+</html>
